@@ -1,9 +1,10 @@
 from torch.utils.data import Dataset
 from torchvision.transforms import transforms
 from sklearn.model_selection import train_test_split
-
+from vocabulary.vocab import Tokenizer
+import torch
 class VicaptioningDataSet(Dataset):
-    def __init__(self, dataset = None, split: str = 'train', val_split: float = 0.0, is_shuffle: bool = True, sheet = 12, transform: list = None, img_size = 224):
+    def __init__(self, dataset = None, split: str = 'train', val_split: float = 0.0, is_shuffle: bool = True, sheet = 12, transform: list = None, img_size = 224, stoi = None):
         super().__init__()
         # Kiếm tra xem dataset có rỗng không
         if dataset is None:
@@ -43,14 +44,21 @@ class VicaptioningDataSet(Dataset):
         #################################################################################################################################
 
         # transform mặc định là Resize, chuyển thành Tensor
-        list_transforms =[transforms.Resize(size=img_size), transforms.ToTensor()]
+        list_transforms =[transforms.Resize(size=(img_size, img_size)), transforms.ToTensor()]
         if transform is not None:
             list_transforms.extend(transform)
         self.transformer = transforms.Compose(list_transforms)
+        # dict string to idx
+        self.stoi = stoi
     def __len__(self):
         return len(self.list_idx_sample)
     def __getitem__(self, index):
         idx_img, idx_caption = self.list_idx_sample[index]
         img = self.transformer(self.dataraw[idx_img]['image'])
         caption = self.dataraw[idx_img]['caption_vi'][idx_caption]
-        return img , caption
+        if self.itos is None:
+            return img , caption
+        else:
+            tokenizer = Tokenizer()
+            caption2idx = [self.stoi[token] for token in tokenizer(caption)]
+            return img, torch.tensor(caption2idx)
