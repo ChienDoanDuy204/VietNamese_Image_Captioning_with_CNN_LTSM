@@ -50,6 +50,8 @@ class VicaptioningDataSet(Dataset):
         self.transformer = transforms.Compose(list_transforms)
         # dict string to idx
         self.stoi = stoi
+
+        self.tokenizer = Tokenizer()
     def __len__(self):
         return len(self.list_idx_sample)
     def __getitem__(self, index):
@@ -59,6 +61,5 @@ class VicaptioningDataSet(Dataset):
         if self.itos is None:
             return img , caption
         else:
-            tokenizer = Tokenizer()
-            caption2idx = [self.stoi[token] for token in tokenizer(caption)]
+            caption2idx = [self.stoi[token] for token in self.tokenizer(caption)]
             return img, torch.tensor(caption2idx)
