@@ -2,9 +2,10 @@ from torch.utils.data import Dataset
 from torchvision.transforms import transforms
 from sklearn.model_selection import train_test_split
 from vocabulary.vocab import Tokenizer
+from preprocessing.preprocessing_text import *
 import torch
 class VicaptioningDataSet(Dataset):
-    def __init__(self, dataset = None, split: str = 'train', val_split: float = 0.0, is_shuffle: bool = True, sheet = 12, transform: list = None, img_size = 224, stoi = None):
+    def __init__(self, dataset = None, split: str = 'train', val_split: float = 0.0, is_shuffle: bool = True, sheet = 12, transform: list = None, img_size = 224, vocab = None, max_length = 30):
         super().__init__()
         # Kiếm tra xem dataset có rỗng không
         if dataset is None:
@@ -49,17 +50,23 @@ class VicaptioningDataSet(Dataset):
             list_transforms.extend(transform)
         self.transformer = transforms.Compose(list_transforms)
         # dict string to idx
-        self.stoi = stoi
-
+        self.vocab = vocab
         self.tokenizer = Tokenizer()
+        self.max_length = max_length
+        self.processor = Preprocessing()
     def __len__(self):
         return len(self.list_idx_sample)
     def __getitem__(self, index):
         idx_img, idx_caption = self.list_idx_sample[index]
         img = self.transformer(self.dataraw[idx_img]['image'])
-        caption = self.dataraw[idx_img]['caption_vi'][idx_caption]
-        if self.itos is None:
+        caption =self.processor.tranfer2Lower(self.processor.remove_punctuation_digit(self.dataraw[idx_img]['caption_vi'][idx_caption]))
+        if self.vocab is None:
             return img , caption
         else:
-            caption2idx = [self.stoi[token] for token in self.tokenizer(caption)]
+            caption2idx = self.tokenizer(caption)
+            num_padd = len(caption2idx) - self.max_length-2
+            # Thêm token '<padd>' nếu câu chưa đủ dài 
+            caption2idx = caption2idx[:(self.max_length-2)] + ['<end>'] + ['<padd>']*num_padd
+            # Thêm token '<start>' để mở đầu sentence và '<end>' để kết thúc câu
+            caption2idx = self.vocab(['<start>'] + caption2idx)
             return img, torch.tensor(caption2idx)
