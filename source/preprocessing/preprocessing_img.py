@@ -24,6 +24,7 @@ class ComputeMeanStd:
                 "mean": mean.tolist(),
                 "std": std.tolist()
             }
+            json.dump(img_config, f, indent = 4, ensure_ascii=False)
     def load_mean_std(self, path):
         with open(file = path, mode = 'r', encoding = 'utf-8') as f:
             img_config = json.load(f)
