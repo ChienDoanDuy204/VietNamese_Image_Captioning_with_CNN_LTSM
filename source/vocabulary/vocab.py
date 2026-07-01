@@ -13,6 +13,7 @@ class BuiltVocabFromIterator:
         self.vocab = None
         self.special_tokens = special_tokens
         self.vocab_size = vocab_size
+
         if iterator is not None:
             # variable to check type data of special_tokens is list
             check_type = False
@@ -21,6 +22,8 @@ class BuiltVocabFromIterator:
                     check_type = True
                 else:
                     raise ValueError(f"special_tokens must be list contain tokens")
+            else:
+                raise ValueError("BuiltVocabFromIterator forget a parameter special_tokens")
             # build vocab frequency of each word
             sentence = next(iterator, 0) # trả về 0 thay vì lỗi nếu out index
             while sentence:
@@ -34,9 +37,13 @@ class BuiltVocabFromIterator:
                 self.vocab = {word : index for index, word in enumerate(TopKwordMostFreq)}
             if special_tokens is not None and check_type:
                 total_word = special_tokens.copy()
-                total_word.extend(TopKwordMostFreq)
+                total_word.extend(TopKwordMostFreq[:(len(TopKwordMostFreq)-len(self.special_tokens))])
                 self.vocab = {word : indx for indx, word in enumerate(total_word)}
         self.idx2str = {idx: word for word, idx in self.vocab.items()}
+    
+    def set_default(self,key):
+        self.default_key = key
+
     # string to index
     def stoi(self):
         return self.vocab
@@ -69,5 +76,5 @@ class BuiltVocabFromIterator:
     
     # convert text2index - presentation indexing
     def __call__(self, list_token):
-        present_idx = [self.vocab[token] for token in list_token]
+        present_idx = [self.vocab.get(token, self.vocab[self.default_key]) for token in list_token]
         return present_idx
