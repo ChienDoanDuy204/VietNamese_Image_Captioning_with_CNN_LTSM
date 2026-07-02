@@ -64,7 +64,7 @@ class VicaptioningDataSet(Dataset):
             return img , caption
         else:
             caption2idx = self.tokenizer(caption)
-            num_padd = len(caption2idx) - self.max_length-2
+            num_padd = self.max_length - len(caption2idx) -2
             # Thêm token '<padd>' nếu câu chưa đủ dài 
             caption2idx = caption2idx[:(self.max_length-2)] + ['<end>'] + ['<padd>']*num_padd
             # Thêm token '<start>' để mở đầu sentence và '<end>' để kết thúc câu

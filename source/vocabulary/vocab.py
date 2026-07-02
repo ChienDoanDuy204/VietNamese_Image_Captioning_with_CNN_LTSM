@@ -29,7 +29,7 @@ class BuiltVocabFromIterator:
             while sentence:
                 for token in sentence:
                     self.vocab_freq[token] = self.vocab_freq.get(token, 0) +1
-                    sentence = next(iterator,0)
+                sentence = next(iterator,0)
 
             # buil vocab index presentation top vocab_size word have most frequency is sorted follow the values of vocab_freq
             TopKwordMostFreq = sorted(self.vocab_freq, key= lambda x:self.vocab_freq[x], reverse=True)[:vocab_size]
