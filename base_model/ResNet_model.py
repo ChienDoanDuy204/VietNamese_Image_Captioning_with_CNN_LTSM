@@ -2,12 +2,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
+import sys
 from torch.utils.data import Subset, Dataset, DataLoader, TensorDataset
 from torchinfo import summary
 from tqdm import tqdm
-from MLP import BaseMLP, ResidualBlock
 from sklearn.model_selection import train_test_split
+from pathlib import Path
 
+ROOT_DIR = Path.cwd().parent
+BASE_MODEL_DIR = ROOT_DIR/'base_model'
+sys.path.extend([str(ROOT_DIR), str(BASE_MODEL_DIR)])
+
+from MLP import *
+from ResNet_model import *
 
 # code genalization of model ResNet
 class ResNet(BaseMLP):

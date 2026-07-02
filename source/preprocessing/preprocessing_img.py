@@ -2,7 +2,7 @@ from torch.utils.data import DataLoader
 import json
 import torch
 class ComputeMeanStd:
-    def __init__(self, dataset, batch_size, num_channels) -> None:
+    def __init__(self, dataset =None, batch_size = None, num_channels = None) -> None:
         self.dataloader = DataLoader(dataset, batch_size=batch_size)
         self.batch_size = batch_size
         self.num_channels = num_channels

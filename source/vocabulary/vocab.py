@@ -39,7 +39,7 @@ class BuiltVocabFromIterator:
                 total_word = special_tokens.copy()
                 total_word.extend(TopKwordMostFreq[:(len(TopKwordMostFreq)-len(self.special_tokens))])
                 self.vocab = {word : indx for indx, word in enumerate(total_word)}
-        self.idx2str = {idx: word for word, idx in self.vocab.items()}
+            self.idx2str = {idx: word for word, idx in self.vocab.items()}
     
     def set_default(self,key):
         self.default_key = key
@@ -58,7 +58,8 @@ class BuiltVocabFromIterator:
             "vocab_size": self.vocab_size,
             "special_tokens": self.special_tokens,
             "vocab": self.vocab,
-            "idx2str": self.idx2str
+            "idx2str": self.idx2str,
+            "default_key": self.default_key
         }
         with open(file= path, mode ='w', encoding='utf-8') as f:
             json.dump(data,f, ensure_ascii=False, indent=2)
@@ -72,7 +73,7 @@ class BuiltVocabFromIterator:
         self.vocab = data["vocab"]
         self.special_tokens = data["special_tokens"]
         self.idx2str = data["idx2str"]
-    
+        self.default_key = data["default_key"]
     
     # convert text2index - presentation indexing
     def __call__(self, list_token):
