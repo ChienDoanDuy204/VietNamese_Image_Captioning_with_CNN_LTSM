@@ -34,7 +34,7 @@ class ResidualBlock(nn.Module):
 
 
 # Model Base for classification and Regression
-class BaseMLP(ABC):
+class BaseMLP(ABC, nn.Module):
     r"""
     abstract class - Lớp trừu tượng - Tạo bộ khung, mẫu cho class BASEMLP
 
@@ -47,6 +47,7 @@ class BaseMLP(ABC):
 
 
     def __init__(self):
+        nn.Module.__init__(self)
         self.Layers = []
         self.model = None
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'

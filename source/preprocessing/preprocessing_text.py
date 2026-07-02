@@ -5,7 +5,7 @@ class Preprocessing:
     def remove_punctuation_digit(self, sentence):
         char_remove = string.punctuation + string.digits
         for char in char_remove:
-            sentence = sentence.replace(char,' ')
+            sentence = sentence.replace(char,'')
         return sentence
     def tranfer2Lower(self, sentence):
         sentence = sentence.lower()
