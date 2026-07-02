@@ -33,6 +33,7 @@ class ViCaptionDecoder(nn.Module):
 
 class ViCaptioningImgModel(nn.Module):
     def __init__(self, version_ResNet: int = 34, vocab_size: int = 500, embedding_dim: int =100, hidden_size: int =100, num_layer: int =1 ):
+        super().__init__()
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.encoder = ViCaptionEncoder(version=34)
         self.decoder = ViCaptionDecoder(vocab_size= vocab_size, embedding_dim= embedding_dim, hidden_size= hidden_size, num_layers= num_layer)
@@ -44,3 +45,9 @@ class ViCaptioningImgModel(nn.Module):
         c0, h0 = self.LinearF2c0(FeatureMaps), self.LinearF2h0(FeatureMaps)
         logits = self.decoder(y, (h0, c0))
         return logits
+
+class TrainModel:
+    def __init__(self) -> None:
+        pass
+    def fit(self, model, X, y, dataset, X_val, y_val, val_dataset, n_epochs: int = 100, batch_size: int = 256, verbose: int = 2, is_shuffle : bool = True, lr: float = 0.01 , criterion, optimizer):
+        if X
