@@ -5,7 +5,6 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, random_split, TensorDataset, Subset
 from torch.optim.optimizer import Optimizer
 from tqdm import tqdm
-from sklearn.model_selection import train_test_split
 from torch.amp import GradScaler
 
 ##########################   kỹ thuật AMP - Automatic Mixed Precision -> Giảm kiểu DL từ float 32 -> float 16 -> tiết kiệm VRAM tăng tốc độ tính toán  #########################
@@ -43,6 +42,7 @@ class BaseMLP(ABC):
     logits = self.Forward().
     Subclass also should overwrite metthod 'get_accuracy' to get accuracy from 2 parameter logits and y
     Subclass also should overwrite metthod 'compute_loss' to get loss_value from self.criterion
+    Subclass also should overwrite metthod 'forward' to get logits from model
     """
 
 
@@ -62,7 +62,11 @@ class BaseMLP(ABC):
     @abstractmethod
     def compute_loss(self,logits, y):
         pass
-
+    @abstractmethod
+    def forward(self,X):
+        if self.model is not None:
+            return self.model(X)
+        raise ValueError("BaseMLP.model is None !")
 
     def Add_layer(self,layers):
         if not isinstance(layers, list):
@@ -70,16 +74,12 @@ class BaseMLP(ABC):
         self.Layers.extend(layers)
         # dấu * ở đây có nghĩa là mỗi phần tử của list là 1 tham số của hàm nn.Sequential
         self.model = nn.Sequential(*self.Layers)
-    def forward(self,X):
-        if self.model is not None:
-            return self.model(X)
-        raise ValueError("BaseMLP.model is None !")
 
     def print_fmt(self,Value):
         if Value is None or len(Value) ==0:
             return float('nan')
         return Value[-1]
-    def fit(self, X = None, y = None, X_val = None, y_val = None, dataset = None, val_dataset = None, lr = 0.01, n_epochs = 100, batch_size = 1, verbose = 0, validation_split = None, is_shuffle = True, optimizer = 'SGD', criterion = 'MSE', random_state = 14):
+    def fit(self, X = None, y = None, X_val = None, y_val = None, dataset = None, val_dataset = None, lr = 0.01, n_epochs = 100, batch_size = 1, verbose = 0, is_shuffle = True, optimizer = 'SGD', criterion = 'MSE'):
         self.dataset = None
         self.val_dataset = None
         
@@ -107,9 +107,7 @@ class BaseMLP(ABC):
         self.n_epochs = n_epochs
         self.batch_size = batch_size
         self.verbose = verbose
-        self.validation_split = validation_split
         self.is_shuffle = is_shuffle
-        self.random_state = random_state
         # dict các optimizer và criterion hỗ trợ
         optimizers = {
             'sgd':torch.optim.SGD,
@@ -123,8 +121,8 @@ class BaseMLP(ABC):
         }
         # Kiểm tra một biến có kiểu Dl là gì đó
         if isinstance(criterion,str):
-            crit_class = criterions.get(criterion.lower())
-            if crit_class is None:
+            crit_class = criterions.get(criterion.lower(), 0)
+            if not crit_class:
                 raise ValueError(f"criterion unsupport {criterion}")
             self.criterion = crit_class()
         else:
@@ -133,8 +131,8 @@ class BaseMLP(ABC):
             self.criterion = criterion
         
         if isinstance(optimizer,str):
-            optim_class = optimizers.get(optimizer.lower())
-            if optim_class is None:
+            optim_class = optimizers.get(optimizer.lower(),0)
+            if not optim_class:
                 raise ValueError(f"optimizer unsupport {optimizer}")
             self.optimizer = optim_class(self.model.parameters(),lr = self.lr)
         else:
@@ -149,32 +147,11 @@ class BaseMLP(ABC):
         self.Val_Losses = []
         self.Val_Accuracies = []
 
-        # Tách DL validation từ train set nếu muốn và không có val_dataset được truyền vào
-        if self.validation_split is not None and self.validation_split>0 and self.val_dataset is None:
-            '''
-            Val_size = int(self.validation_split*len(self.dataset))
-            Train_size = len(self.dataset) - Val_size
-            # Chia DL trong train set và val set nếu có
-            # Cách chia theo random_split sẽ làm mất cân bằng nhãn -> mô hình học không tốt
-            self.TrainSet, self.ValSet = random_split(self.dataset,[Train_size,Val_size])
-            self.Val_Loader = DataLoader(self.ValSet,batch_size=Val_size)
-            '''
-            idxs = range(len(self.dataset))
-            labels = list(zip(*self.dataset))[1]
-            # Tham số stratify=labels sẽ giữ nguyên phân bố của nhãn khi split giữa các tập được chia -> phân bố nhãn giữa các tập giống nhau 
-            try: 
-                # Split train, test follow index of dataset then use function Subset to split Traindaset and Valdataset
-                train_idx, val_idx = train_test_split(idxs, train_size= (1- self.validation_split), stratify=labels, shuffle=True ,random_state=self.random_state)
-            except:
-                train_idx, val_idx = train_test_split(idxs, train_size= (1- self.validation_split), shuffle=True ,random_state=self.random_state)
-            self.TrainSet, self.ValSet = Subset(self.dataset,train_idx), Subset(self.dataset,val_idx)
-            self.Val_Loader = DataLoader(self.ValSet,batch_size=self.batch_size)
-        else:
-            self.TrainSet = self.dataset
-        self.Train_Loader = DataLoader(self.TrainSet,batch_size=self.batch_size, shuffle= self.is_shuffle, num_workers = 2, pin_memory=True)
+        # Tạo train loader
+        self.Train_Loader = DataLoader(self.dataset, batch_size=self.batch_size, shuffle= self.is_shuffle, num_workers = 2, pin_memory=True)
 
 
-        # Kiêm tra val_dataset có tồn tại hay không
+        # Kiểm tra val_dataset có tồn tại hay không
         if self.val_dataset is not None:
             self.Val_Loader = DataLoader(self.val_dataset,batch_size=self.batch_size, num_workers = 2, pin_memory= True)
 
@@ -230,7 +207,7 @@ class BaseMLP(ABC):
                 for X_val, y_val in self.Val_Loader:
                     X_val, y_val = X_val.to(self.device), y_val.to(self.device)
                     with torch.no_grad():
-                        logits_Val = self.model(X_val)
+                        logits_Val = self.forward(X_val)
                         val_loss = self.compute_loss(logits_Val,y_val)
                         val_acc = self.get_accuracy(logits_Val, y_val)
                         Loss_val_epoch += val_loss.item()

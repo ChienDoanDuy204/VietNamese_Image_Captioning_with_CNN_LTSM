@@ -12,7 +12,7 @@ class ComputeMeanStd:
         num_samples = 0
         for images, _ in self.dataloader:
             num_samples += images.shape[0]
-            images = images.view(self.batch_size, self.num_channels, -1)
+            images = images.view(images.shape[0], self.num_channels, -1)
             mean += images.mean(dim = (0,2))*images.shape[0]
             std += images.std(dim = (0,2))*images.shape[0]
         mean /= num_samples
