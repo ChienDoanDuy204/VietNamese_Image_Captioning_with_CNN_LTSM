@@ -1,2 +1,4 @@
 datasets==5.0.0
 pathlib==1.0.1
+nltk==3.9.3
+streamlit==1.59.1

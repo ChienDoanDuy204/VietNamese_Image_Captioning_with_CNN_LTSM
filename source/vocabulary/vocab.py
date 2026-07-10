@@ -5,7 +5,7 @@ class Tokenizer:
     def __call__(self, documentation):
         if documentation is None:
             raise ValueError(f"Tokenizer requirement a parameter documnetation !")
-        return documentation.split(' ')
+        return documentation.split()
 
 class BuiltVocabFromIterator:
     def __init__(self, iterator = None, vocab_size = 2000, special_tokens: list = None):
@@ -72,7 +72,7 @@ class BuiltVocabFromIterator:
         self.vocab_size = data["vocab_size"]
         self.vocab = data["vocab"]
         self.special_tokens = data["special_tokens"]
-        self.idx2str = data["idx2str"]
+        self.idx2str = {int(k): value for k, value in data["idx2str"].items()}
         self.default_key = data["default_key"]
     
     # convert text2index - presentation indexing

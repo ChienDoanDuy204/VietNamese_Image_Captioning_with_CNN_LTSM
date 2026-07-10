@@ -5,41 +5,25 @@ from vocabulary.vocab import Tokenizer
 from preprocessing.preprocessing_text import *
 import torch
 class VicaptioningDataSet(Dataset):
-    def __init__(self, dataset = None, split: str = 'train', val_split: float = 0.0, is_shuffle: bool = True, sheet = 12, transform: list = None, img_size = 224, vocab = None, max_length = 30):
+    def __init__(self, dataset = None, split = 'train',  val_split = 0.1, transform: list = None, img_size = 224, vocab = None, max_length = 30):
         super().__init__()
         # Kiếm tra xem dataset có rỗng không
         if dataset is None:
             raise ValueError(f"the parameter dataset is not None !")
         self.list_idx_sample = []
-        self.dataraw = None
         self.split_idx = None
-        # kiểm tra xem split có là 1 trong 3 tập train, test, valid không
-        if split != 'train' and split != 'test' and split != 'valid':
-            raise ValueError(f"the split parameter unsupport {split}")
-        # Nếu split = 'valid' nhưng quên điền val_split -> Lỗi
-        if split =='valid' and not val_split:
-            raise ValueError(f"The split = 'valid requirment val_split > 0! ")
-        # Nếu có giá trị val_slpit và split là train hoặc test -> tiến hành tách DL từ tập train 
-        if val_split and split != 'test':
-            self.dataraw = dataset['train']
-            idx_train, idx_val = train_test_split(range(len(self.dataraw)), test_size=val_split, shuffle=is_shuffle, random_state=sheet)
-            if split == 'train':
-                self.split_idx = idx_train
-            else:
-                self.split_idx = idx_val
-        # Nếu split = 'test' thì giữ nguyên không chia
-        if split == 'test':
-            self.dataraw = dataset['test']
+        self.dataraw = dataset['train']
+        if split not in ['train', 'valid']:
+            raise ValueError(f"split only support value 'train' or 'valid' !")
+        self.split = split
+        if val_split:
+            self.idx_train, self.idx_val = train_test_split(range(len(self.dataraw)), test_size = val_split, shuffle = False)
+            self.split_idx = self.idx_train
+        else:
             self.split_idx = range(len(self.dataraw))
-        # Nếu val_split = 0 và split = 'train' thì giữ nguyên tập train không chia
-        if not val_split and split =='train':
-            self.dataraw = dataset['train']
-            self.split_idx = range(len(self.dataraw))
-        
-
         ##################### tổ chức DL 1 ảnh có nhiều caption -> 1 ảnh - 1 caption tương ứng ########################################## 
         for idx_img in self.split_idx:
-            for idx_caption in range( len(self.dataraw[idx_img]['caption_vi'])):
+            for idx_caption in range( len(self.dataraw[idx_img]['segment_caption_vi'])):
                 # tổ chức data dưới dạng [(img1idx - caption1idx), (img1idx - caption2idx)]
                 self.list_idx_sample.append((idx_img, idx_caption))
         #################################################################################################################################
@@ -55,18 +39,27 @@ class VicaptioningDataSet(Dataset):
         self.max_length = max_length
         self.processor = Preprocessing()
     def __len__(self):
-        return len(self.list_idx_sample)
+        if self.split == 'train':
+            return len(self.list_idx_sample)
+        if self.split == 'valid':
+            return len(list(self.idx_val))
     def __getitem__(self, index):
-        idx_img, idx_caption = self.list_idx_sample[index]
-        img = self.transformer(self.dataraw[idx_img]['image'])
-        caption =self.processor.tranfer2Lower(self.processor.remove_punctuation_digit(self.dataraw[idx_img]['caption_vi'][idx_caption]))
-        if self.vocab is None:
-            return img , caption
-        else:
-            caption2idx = self.tokenizer(caption)
-            num_padd = self.max_length - len(caption2idx) -2
-            # Thêm token '<padd>' nếu câu chưa đủ dài 
-            caption2idx = caption2idx[:(self.max_length-2)] + ['<end>'] + ['<padd>']*num_padd
-            # Thêm token '<start>' để mở đầu sentence và '<end>' để kết thúc câu
-            caption2idx = self.vocab(['<start>'] + caption2idx)
-            return img, torch.tensor(caption2idx)
+        if self.split == 'train':
+            idx_img, idx_caption = self.list_idx_sample[index]
+            img = self.transformer(self.dataraw[idx_img]['image'])
+            caption =self.processor.tranfer2Lower(self.processor.remove_punctuation_digit(self.dataraw[idx_img]['segment_caption_vi'][idx_caption]))
+            if self.vocab is None:
+                return img , caption
+            else:
+                caption2idx = self.tokenizer(caption)
+                num_padd = self.max_length - len(caption2idx) -2
+                # Thêm token '<padd>' nếu câu chưa đủ dài 
+                caption2idx = caption2idx[:(self.max_length-2)] + ['<end>'] + ['<padd>']*num_padd
+                # Thêm token '<start>' để mở đầu sentence và '<end>' để kết thúc câu
+                caption2idx = self.vocab(['<start>'] + caption2idx)
+                return img, torch.tensor(caption2idx[:-1]), torch.tensor(caption2idx[1:])
+        if self.split == 'valid':
+            idx_img = list(self.idx_val)[index]
+            img = self.transformer(self.dataraw[idx_img]['image'])
+            list_caption = [self.processor.tranfer2Lower(self.processor.remove_punctuation_digit(caption)).split() for caption in self.dataraw[idx_img]['segment_caption_vi']]
+            return img, list_caption
