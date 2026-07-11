@@ -54,7 +54,7 @@ class ViCaptionDecoder(nn.Module):
         except:
             self.rnn_layer = nn.LSTM(input_size= embedding_dim + 2048, hidden_size= hidden_size, num_layers=num_layers, batch_first=True)
         self.out2class = nn.Linear(in_features = hidden_size, out_features  = vocab_size)
-        self.dropout_layer = nn.Dropout(p = 0.4)
+        self.dropout_layer = nn.Dropout(p = 0.5)
     def forward(self,X, h0, c0, img_feature):
         X_embedded = self.embedding_matrix(X) # have shape (N, L, embedding_dim)
         L = X_embedded.shape[1]
@@ -117,36 +117,38 @@ class TrainModel:
         return correct.sum().float()/mask.sum().float()
     
     def generate_caption(self, model, img, vocab, max_length = 20):
-        if model is None:
-            raise ValueError(f"Generate_caption require the parameter model !")
-        else:
-            self.model = model.to(self.device)
-        # Thêm dim vào vị trí index = 0 -> shape(N,C,W,H)
-        img = img.to(self.device)
-        img = img.unsqueeze(0)
-        FeatureMap = self.model.encoder(img)
-        c0, h0 = self.model.LinearF2c0(FeatureMap), self.model.LinearF2h0(FeatureMap)
-        # Thêm một chiều vào dim =0 cho đúng đầu vào của LSTM, RNN
-        c0 = self.model.activation_layer1(c0)
-        h0 = self.model.activation_layer2(h0)
-        
-        c0 = c0.unsqueeze(0)
-        h0 = h0.unsqueeze(0)
+        with torch.no_grad():
+            if model is None:
+                raise ValueError(f"Generate_caption require the parameter model !")
+            else:
+                self.model = model.to(self.device)
+            # Thêm dim vào vị trí index = 0 -> shape(N,C,W,H)
+            self.model.eval()
+            img = img.to(self.device)
+            img = img.unsqueeze(0)
+            FeatureMap = self.model.encoder(img)
+            c0, h0 = self.model.LinearF2c0(FeatureMap), self.model.LinearF2h0(FeatureMap)
+            # Thêm một chiều vào dim =0 cho đúng đầu vào của LSTM, RNN
+            c0 = self.model.activation_layer1(c0)
+            h0 = self.model.activation_layer2(h0)
+            
+            c0 = c0.unsqueeze(0)
+            h0 = h0.unsqueeze(0)
 
-        c0 = c0.repeat(self.model.num_layer, 1, 1)
-        h0 = h0.repeat(self.model.num_layer, 1, 1)
+            c0 = c0.repeat(self.model.num_layer, 1, 1)
+            h0 = h0.repeat(self.model.num_layer, 1, 1)
 
-        start_idx = vocab.vocab['<start>']
-        end_idx = vocab.vocab['<end>']
-        list_idx_generated =[start_idx]
-        input_token = torch.tensor([[start_idx]]).to(self.device)
-        while end_idx not in list_idx_generated and len(list_idx_generated) < max_length:
-            logit, (h0,c0)= self.model.decoder(input_token, h0, c0, FeatureMap)
-            next_token = torch.argmax(logit, dim = -1).item()
-            list_idx_generated.append(next_token)
-            input_token = torch.tensor([[next_token]]).to(self.device)
-        list_words = [vocab.idx2str[idx] for idx in list_idx_generated[1:-1]]
-        return ' '.join(list_words)
+            start_idx = vocab.vocab['<start>']
+            end_idx = vocab.vocab['<end>']
+            list_idx_generated =[start_idx]
+            input_token = torch.tensor([[start_idx]]).to(self.device)
+            while end_idx not in list_idx_generated and len(list_idx_generated) < max_length:
+                logit, (h0,c0)= self.model.decoder(input_token, h0, c0, FeatureMap)
+                next_token = torch.argmax(logit, dim = -1).item()
+                list_idx_generated.append(next_token)
+                input_token = torch.tensor([[next_token]]).to(self.device)
+            list_words = [vocab.idx2str[idx] for idx in list_idx_generated[1:-1]]
+            return ' '.join(list_words)
 
     def evaluate(self, model, val_dataset, vocab, max_length, num_sample=200):
         if model is None:

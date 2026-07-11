@@ -48,11 +48,11 @@ def prepare_model_and_generate_caption(img):
     # Load weight
     state_dict = torch.load(str(PATH_WEIGHT_MODEL))
 
-    GenerateCaptionModel = ViCaptioningImgModel(version_ResNet=18,vocab_size=vocab.vocab_size, embedding_dim = 512, hidden_size = 512, num_layer_LSTM=2)
+    GenerateCaptionModel = ViCaptioningImgModel(version_ResNet=18,vocab_size=vocab.vocab_size, embedding_dim = 1024, hidden_size = 1024, num_layer_LSTM=4)
     GenerateCaptionModel.load_state_dict(state_dict)
 
     Trainer = TrainModel()
-    return Trainer.generate_caption(model=GenerateCaptionModel, img=img, vocab=vocab, max_length=20)
+    return Trainer.generate_caption(model=GenerateCaptionModel, img=img, vocab=vocab, max_length=30)
 
 
 
